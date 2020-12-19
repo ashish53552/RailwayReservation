@@ -1,0 +1,214 @@
+<%- include('partials/header') %>
+
+</head>
+
+<body>
+    <div>
+        <p></p>
+        <div class='p-4 mt-5'>
+            <form method="POST" name='bookingForm' id="#form" autocomplete="off" action='/booking-portal'>
+                <div class="form-group row">
+                    <label for="agent_id" class='col-md-2 col-form-label'>Booking ID</label>
+                    <div class="col-md-10">
+                        <input type="text" readonly name="agent_id" value='<%=key%>' id="agent_id" class='form-control-plaintext'>
+                    </div>
+                </div>
+                <div class='form-group row'>
+                    <label for="train_no" class='col-md-2 col-form-label'>Train No.</label>
+                    <div class='col-md-10'>
+                        <select name="train_no" class="form-control" id="train-no">
+                        </select>
+                    </div>
+                </div>
+                <div class='form-group row'>
+                    <label for="date" class='col-md-2 col-form-label'>Date</label>
+                    <div class='col-md-10'>
+                        <select required name="date" id="date" class='form-control'>
+
+                        </select>
+                    </div>
+
+                </div>
+                <div class='form-group row'>
+                    <label for="coach" class='col-md-2 col-form-label'>Coach</label>
+                    <div class='col-md-10'>
+                        <select name="coach" id="coach" class='form-control'>
+                            <option value="AC">AC</option>
+                            <option value="SL">SL</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group row">
+                    <label for="passengers" class='col-md-2 col-form-label'>Passengers</label>
+                    <div class="col-md-8">
+                        <select  name="passengers" class="form-control" id="passengers">
+
+                        </select>
+                    </div>
+                    <div class='col-md-2'>
+                        <button type='button' id='check-availability' class='btn  btn-outline-dark'>Check Availability</button>
+                    </div>
+                </div>
+                <div name='allpassengers' id='wrapperNode'>
+                    <div name="list" id='list'>
+                        <label for="Passenger1">Passenger 1</label>
+                        <div class="form-group row" name="Passenger 1">
+                            <div class='col-md-12 form-group row'>
+                                <label for="name" class='col-md-2 col-form-label'>Name</label>
+                                <div class='col-md-10'>
+                                    <input required name="name" type="text" id='name' class='form-control'>
+                                </div>
+                            </div>
+                            <div class='col-md-12 form-group row'>
+                                <label for="age" class='mt-2 col-md-2 col-form-label'>age</label>
+                                <div class='col-md-4'>
+                                    <input required name="age" type='number' min="1" class="mt-2 form-control" id="age">
+    
+                                </div>
+                                <label for="gender" class='mt-2 col-md-2 col-form-label'>gender</label>
+                                <div class='col-md-4'>
+                                    <select  required name="gender" class="mt-2 form-control" id="gender">
+                                        <option value="M">male</option>
+                                        <option value="F">female</option>
+                                        <option value="O">other</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <button type='submit' disabled='true' id='finalSubmitButton' class='btn btn-dark'>submit</button>
+            </form>
+        </div>
+    </div>
+</body>
+<script>
+    var insertNode=document.querySelector('#list');
+    const passengerListElement=document.querySelector("#passengers");
+    const trainNoEvent=document.querySelector("#train-no");
+    const dateEvent=document.querySelector("#date");
+    const wrapperNode=document.querySelector("#wrapperNode");
+    const checkAvailability=document.querySelector('#check-availability');
+    const coachType=document.querySelector('#coach');
+    const finalSubmitButton=document.querySelector('#finalSubmitButton');
+    $(document).ready(function() {
+        $.get("/trainInfo",(results,status)=>{
+            console.log(results);
+            for (var i = 0; i <results.length; i++) {
+                var option = document.createElement("OPTION");
+                trainNoEvent.options.add(option);
+                option.text=results[i].train_no+" "+results[i].train_name;
+                option.value=results[i].train_no;
+            }
+            let data={};
+            data.identifier='fordate';
+            data.value=trainNoEvent.value;
+            $.post("/validation-portal",data,(results,error)=>{
+                let alldates=results;
+                dateEvent.innerHTML='';
+                for (let i = 0; i <alldates.length; i++) {
+                    let option = document.createElement("OPTION");
+                    dateEvent.options.add(option);
+                    option.text = alldates[i].date;
+                    option.value = alldates[i].date;
+                } 
+                if(alldates.length){
+                    for(var i=1;i<=30;i++){
+                        var option=document.createElement("OPTION");
+                        passengerListElement.options.add(option);
+                        //console.log(option);
+                        option.text=i;
+                        option.value=i;
+                    }
+                }
+            }) 
+        })
+        wrapperNode.innerHTML='';
+        finalSubmitButton.disabled=true;
+
+    });
+
+
+    trainNoEvent.addEventListener('change',(event)=>{
+        wrapperNode.innerHTML='';
+        finalSubmitButton.disabled=true;
+        let data={};
+        data.identifier='fordate';
+        data.value=event.target.value;
+        $.post("/validation-portal",data,(req,res)=>{
+            let alldates=req;
+            dateEvent.innerHTML='';
+            //console.log(alldates);
+            for (let i = 0; i <alldates.length; i++) {
+                let option = document.createElement("OPTION");
+                dateEvent.options.add(option);
+                option.text = alldates[i].date;
+                option.value = alldates[i].date;
+            }
+            if(alldates.length===0){
+                finalSubmitButton.disabled=true;
+                wrapperNode.innerHTML='';
+                passengerListElement.innerHTML='';
+            }
+            if(alldates.length){
+                passengerListElement.innerHTML='';
+                for(var i=1;i<=30;i++){
+                    var option=document.createElement("OPTION");
+                    passengerListElement.options.add(option);
+                    //console.log(option);
+                    option.text=i;
+                    option.value=i;
+                }
+            }
+        })
+    });
+    dateEvent.addEventListener('change',(event)=>{
+        wrapperNode.innerHTML='';
+        finalSubmitButton.disabled=true;
+        
+    });
+    checkAvailability.addEventListener('click',(event)=>{
+        let train_no=trainNoEvent.value;
+        let date=dateEvent.value;
+        let coach=coachType.value;
+        let req_seats=passengerListElement.value;
+        if(date===''||req_seats===''){
+            return alert('All fields must be filled!');
+        }
+        let data={};
+        data.identifier='checkAvailability';
+        data.train_no=train_no;
+        data.date=date;
+        data.coach=coach;
+        data.req_seats=req_seats;
+        $.post('/validation-portal',data,(results,status)=>{
+            let flag=results[0].check_availability;
+            if(flag==1){
+                wrapperNode.innerHTML='';
+                finalSubmitButton.disabled=false;
+                for(let i=1;i<=passengerListElement.value;i++){
+                    insertNode.firstElementChild.innerHTML='Passenger '+i;
+                    wrapperNode.appendChild(insertNode.cloneNode(true));
+                }
+            }
+            if(flag==0){
+                wrapperNode.innerHTML='';
+                finalSubmitButton.disabled=true;
+                alert('Seats are not available\nPlease change the number of passengers!');
+            }
+        })
+    });
+    passengerListElement.addEventListener('change',(event)=>{
+        wrapperNode.innerHTML='';
+        finalSubmitButton.disabled=true;
+    });
+    coachType.addEventListener('change',(event)=>{
+        wrapperNode.innerHTML='';
+        finalSubmitButton.disabled=true;
+    });
+    
+    
+</script>
+
+<%- include('partials/footer') %>

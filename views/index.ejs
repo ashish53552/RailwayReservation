@@ -1,0 +1,37 @@
+<%- include('partials/header') %>
+
+</head>
+<body>
+<div class="jumbotron centered">
+  <div class="container">
+    <i class="fas fa-key fa-6x"></i>
+    <h1 class="display-3">Railway Reservation</h1>
+    <p class="lead">CS301 Project</p>
+    <hr>
+    <div class="row">
+      <div class="col-md-12">
+        <a class="btn btn-light btn-lg " href="/booking-login" role="button">Booking Agent</a>
+        <a class="btn btn-dark btn-lg" href="/admin-login" role="button">Admin</a>  
+      </div>
+
+      <div class="col-md-12">
+        <div id="printTicket" class="mt-5" >
+          <form action="/printTicket" method="POST">
+            <div class="form-group">
+               <label for="pnr" >PNR Number</label>
+                <input type="text" required name="pnr" placeholder="Enter PNR" id="pnr" class='form-control'>
+              </div>
+              <button type="submit" class="btn btn-dark">Print Ticket!</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+
+
+</body>
+<%- include('partials/footer') %>

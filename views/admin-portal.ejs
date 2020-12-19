@@ -1,0 +1,102 @@
+<%- include('partials/header') %>
+<style>
+    .datepicker {
+        transform:translate(0,3.1em);
+    }
+</style>
+
+</head>
+
+<body>
+    <div>
+        <div class="p-4 mt-5">
+            <form action="/admin-portal" name="adminForm" onsubmit="return validateForm()" method="POST" autocomplete="off">
+                <div class="form-group row">
+                    <label for="train_no" class="col-sm-2 col-form-label">Train No.</label>
+                    <div class="col-sm-10 ">
+                        <select name="train_no" class="form-control" id="train-no">
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group row">
+                    <label for="ac_coach" class="col-md-2 col-form-label">AC Coaches</label>
+                    <div class="col-md-10">
+                        <select name="ac_coaches" id="ac-coach" class="form-control">
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group row">
+                    <label for="sl_coach" class="col-md-2 col-form-label">SL Coaches</label>
+                    <div class="col-md-10">
+                        <select name="sl_coaches" id="sl-coach" class="form-control">
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group row">
+                    <label for="dap" class="col-md-2 col-form-label">Date</label>
+                    <div class='col-md-10'>
+                        <div class='input-group'>
+                            <div class='input-group-prepend'>
+                                <img class="input-group-text" src="bootstrap-icons-1.1.0/calendar-day.svg" alt="">
+                            </div>
+                                <input name="date" type='text' class="form-control dp" required placeholder="yyyy-mm-dd" id='dap'>
+                        </div>
+                    </div>
+                </div>
+                <button type="submit" class='btn  btn-dark'>Add Train!</button>
+            </form>
+        </div>
+    </div>
+
+</body>
+<script>
+    const trainNoEvent=document.querySelector("#train-no");
+    $(document).ready(function() {
+        $.get("/trainInfo",(results,status)=>{
+            console.log(results);
+            for (var i = 0; i <results.length; i++) {
+                var option = document.createElement("OPTION");
+                trainNoEvent.options.add(option);
+                option.text=results[i].train_no+" "+results[i].train_name;
+                option.value=results[i].train_no;
+            } 
+        })
+    });
+    for (var i = 0; i <= 12; i++) {
+        var select = document.getElementById("ac-coach");
+        var option = document.createElement("OPTION");
+        select.options.add(option);
+        option.text = i;
+        option.value = i;
+    }
+    for (var i = 0; i <= 12; i++) {
+        var select = document.getElementById("sl-coach");
+        var option = document.createElement("OPTION");
+        select.options.add(option);
+        option.text = i;
+        option.value = i;
+    }
+</script>
+<script>
+    $('.dp').datepicker({
+        startDate:'+1d',
+        clearBtn:true,
+        autoclose:true,
+        orientation:"bottom",
+        format:"yyyy-mm-dd"
+    });
+    function validateForm(){
+        var adminForm=document.forms['adminForm'];
+        var no_of_ac=adminForm["ac_coaches"].value;
+        var no_of_sl=adminForm['sl_coaches'].value;
+        if(no_of_ac==='0'){
+            if(no_of_sl==='0'){
+                alert("AC and SL both cannot be zero!");
+                return false;
+            }
+        }
+
+    }
+</script>
+
+<%- include('partials/footer') %>

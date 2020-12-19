@@ -1,0 +1,22 @@
+<%- include('partials/header') %>
+</head>
+
+<body class="text-center">
+    <div  class="d-flex flex-column justify-content-center align-items-center" style="margin-top: -100px; height: 100vh;width: 100%;">
+        <div style="width: 500px; height: 100px;">
+            <form method="POST" autocomplete="off" >
+                <div class="form-group">
+                    <label for="exampleInputEmail1" class="h3 lead">Admin Login</label>
+                    <input type="text" name="key" class="form-control" id="exampleInputEmail1" aria-describedby="emailHelp">
+                  </div>
+                  <div class="form-group">
+                    <label for="exampleInputPassword1" class="h3 lead">Password</label>
+                    <input type="password" name="password" class="form-control " id="exampleInputPassword1">
+                  </div>
+                  <button type="submit" class="btn btn-block btn-dark">Submit</button>
+                </div>
+            </form>
+        </div>
+
+    </div>
+    <%- include('partials/footer') %>

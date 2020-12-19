@@ -1,0 +1,78 @@
+<%- include('partials/header') %>
+
+</head>
+
+<body>
+    <p class="font-weight-light mt-5 ml-5 mr-5">Journey Details</p>
+    <div id="main-table" class=" mb-5 ml-5 mr-5">
+        <table class="table">
+            <thead class="thead-dark">
+                <tr>
+                    <th scope="col">PNR</th>
+                    <th scope="col">Train No.</th>
+                    <th scope="col">Train Name</th>
+                    <th scope="col">Date of Journey</th>
+
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                        <td><%=ticket.PNR%></td>
+                        <td><%=ticket.train_no%></td>
+                        <td><%=ticket.train_name%></td>
+                        <td><%=ticket.date%></td>
+
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <p class="font-weight-light mt-5 ml-5 mr-5">Passenger Details</p>
+    <div id="passenger-table" class="ml-5 mr-5 mb-5 mt-0" style="margin-top: 250px;">
+        <table class="table table-hover">
+            <thead class="thead-light">
+              <tr>
+                <th scope="col">#</th>
+                <th scope="col">Name</th>
+                <th scope="col">Coach</th>
+                <th scope="col">Seat</th>
+                <th scope="col">Berth</th>
+                <th scope="col">Age</th>
+                <th scope="col">Gender</th>
+
+              </tr>
+            </thead>
+            <tbody>
+                <% let passengers=ticket.passengers%>
+                <% for(let x=0;x<passengers.length;x++){%>
+                    <tr>
+                        <th scope="row"><%=x+1%></th>
+                        <td><%=passengers[x].pass_name%></td>
+                        <td><%=passengers[x].coach%></td>
+                        <td><%=passengers[x].seat%></td>
+                        <td><%=passengers[x].berth%></td>
+                        <td><%=passengers[x].age%></td>
+                        <td><%=passengers[x].gender%></td>
+ 
+                    </tr>
+                <%}%>
+            </tbody>
+          </table>
+    </div>
+    <a class="btn btn-dark m-5" href="/" role="button">Print Ticket!</a>  
+    
+</body>
+<script>
+
+    // $(document).ready(function(){
+    //     let pnr = document.getElementById('mydiv').dataset.test;
+    //     console.log(pnr);
+    //     let data={};
+    //     data.identifier='printTicket';
+    //     data.pnr_no=pnr;
+    //     $.post('/validation-portal',data,(results,status)=>{
+    //         console.log(results);
+    //     });
+    // });
+
+</script>
+<%- include('partials/footer') %>
