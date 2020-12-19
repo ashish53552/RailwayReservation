@@ -17,8 +17,8 @@ interest by the Admin.
 
 ##Screenshots
 
-- Index ![Main Page](.\Screenshots\2.png)
+- Index ![Main Page](./Screenshots/2.png)
 
-- Booked Tickets ![2](.\Screenshots\8.png)
+- Booked Tickets ![2](./Screenshots/8.png)
 
 
