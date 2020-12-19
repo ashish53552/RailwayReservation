@@ -1,0 +1,326 @@
+
+
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+create table train(
+	train_no integer NOT NULL  primary key,
+	train_name varchar(20) NOT NULL
+);
+create table available_train(
+	train_no integer NOT NULL,
+	date DATE NOT NULL,
+	coach_ac integer,
+	coach_sl integer,
+	avail_ac integer,
+	avail_sl integer,
+	FOREIGN KEY(train_no)references train(train_no),
+	PRIMARY KEY(train_no,date) --changed
+);
+
+
+
+
+create table booking_agent(
+	bid VARCHAR(20) not null primary key,
+	agent_name varchar(7) not null,
+	card_no integer not null,
+	address varchar(30) not null
+);
+insert into booking_agent(bid,agent_name,card_no,address)VALUES('ashish@gmail.com','Ashish ',1234321,'bhopalMP');
+
+create table ticket(
+	pnr uuid default uuid_generate_v4(), train_no integer , date DATE,
+	bid VARCHAR(20),
+	 primary key(pnr),
+	type varchar(2),
+	FOREIGN KEY(bid)references booking_agent(bid)
+);
+  create table passenger(
+pid uuid default uuid_generate_v4(),
+	pnr uuid ,
+	pass_name VARCHAR(20),
+	age integer,
+	gender VARCHAR(2),
+	coach VARCHAR(5) not null,
+	seat integer not null,
+	  primary key(pid),
+	FOREIGN KEY(pnr)references ticket(pnr));
+--trigger which reduces available seats
+create or replace function booking()
+returns trigger as
+$booking$
+declare
+temp_pnr uuid;
+temp_record record;
+begin
+temp_pnr:=new.pnr;
+for temp_record in select train_no,date from ticket where ticket.pnr=new.pnr
+loop
+if new.coach LIKE 'A%' then
+	update available_train set avail_ac=avail_ac-1
+	where train_no=temp_record.train_no and temp_record.date=date;
+end if;
+if new.coach LIKE 'S%' then
+	update available_train set avail_sl=avail_sl-1
+	where train_no=temp_record.train_no and temp_record.date=date;
+end if;
+end loop;
+return old;
+end;
+$booking$ LANGUAGE plpgsql;
+create trigger trig
+after insert on passenger
+for each row 
+execute procedure booking();
+
+--function to create pnr, it is not necessary to this function as update_passenger will call it
+create or replace function create_ticket(train_no int ,date DATE,type varchar(2), bid VARCHAR(20))
+returns uuid as $$
+declare pnr uuid;
+begin
+select into pnr uuid_generate_v4();
+insert into ticket(pnr,train_no,date,bid,type)VALUES(pnr,train_no,date,bid,type);
+return pnr;
+end ;
+$$ LANGUAGE plpgsql;
+
+
+-- check_info contains req_seats,train_no,date,coach
+create or replace function check_availability(check_info json)
+returns int as $$
+declare counter int;
+Beginch
+counter:=0;
+if check_info->>'coach' LIKE 'A%' then
+
+select into counter available_train.avail_ac from available_train where available_train.train_no=(check_info->>'train_no')::integer and available_train.date=(check_info->>'date')::DATE;
+if counter>=(check_info->>'req_seats')::integer then
+return 1; 
+end if;
+if counter<(check_info->>'req_seats')::integer then
+return 0;
+end if;
+end if;
+if check_info->>'coach' LIKE 'S%' then
+
+select into counter available_train.avail_sl from available_train where available_train.train_no=(check_info->>'train_no')::integer and available_train.date=(check_info->>'date')::DATE;
+if counter>=(check_info->>'req_seats')::integer then
+return 1; --train and seats both available
+end if;
+if counter<(check_info->>'req_seats')::integer then
+return 0; --seats not available
+end if;
+end if;
+return -1; --train not available
+end;
+$$ LANGUAGE plpgsql;
+
+
+'{
+  "train_no": 12002,
+  "coach": "SL",
+  "date":"2020-11-11",					 
+  "passengers": 3,
+  "name": [ "fourth ", "fifth","sixth" ],
+  "agent_id":"ashish@gmail.com",
+  "age": [ 20, 20,20 ],
+  "gender": [ "M", "M" ,"F"]
+}' this is sample json which update_passengers expect
+create or replace function update_passengers( pass_info json)
+returns uuid as $$
+declare
+pass_name VARCHAR(20);
+pnr uuid;
+age integer;
+gender VARCHAR(2);
+counter integer:=0;
+coach varchar(3);
+berth integer;
+req_coach varchar(2);
+req_seats integer;
+train_nos integer;
+seat integer;
+avail_seat integer;
+dates date;
+begin
+req_seats:=(pass_info->>'passengers')::int;
+train_nos:=(pass_info->>'train_no')::int;
+dates:=(pass_info->>'date')::date;
+req_coach:=pass_info->>'coach';
+select into pnr create_ticket(train_nos,dates,req_coach,(pass_info->>'agent_id')::varchar(20));
+loop
+	exit when counter=req_seats;
+	if req_coach LIKE 'A%' then 
+		select into avail_seat available_train.coach_ac from available_train
+		where available_train.train_no=train_nos and available_train.date=dates;
+		select into seat available_train.avail_ac from available_train
+		where available_train.train_no=train_nos and available_train.date=dates;
+		coach:=concat('A', ((avail_seat*18-seat)/18)+1);
+		berth:=((avail_seat*18-seat)%18)+1;
+		insert into passenger(pnr,pass_name,age,gender,coach,seat)
+		VALUES(pnr,(pass_info->'name'->>counter)::varchar(20),(pass_info->'age'->>counter)::integer,(pass_info->'gender'->>counter)::varchar(2),coach,berth);
+	end if;
+	if req_coach LIKE 'S%' then 
+		select into avail_seat available_train.coach_sl from available_train
+		where available_train.train_no=train_nos and available_train.date=dates;
+		select into seat available_train.avail_sl from available_train
+		where available_train.train_no=train_nos and available_train.date=dates;
+		coach:=concat('S', ((avail_seat*24-seat)/24)+1);
+		berth:=((avail_seat*24-seat)%24)+1;
+		insert into passenger(pnr,pass_name,age,gender,coach,seat)
+		VALUES(pnr,(pass_info->'name'->>counter)::varchar(20),(pass_info->'age'->>counter)::integer,(pass_info->'gender'->>counter)::varchar(2),coach,berth);
+	end if;
+	counter:=counter+1;
+	end loop;
+	return pnr;
+	end;
+	$$ LANGUAGE plpgsql;
+
+
+
+
+create table ac_berth(seat_no integer ,berth VARCHAR(2));
+insert into ac_berth(seat_no, berth)VALUES(1,'LB');
+insert into ac_berth(seat_no, berth)VALUES(2,'LB');
+insert into ac_berth(seat_no, berth)VALUES(3,'UB');
+insert into ac_berth(seat_no, berth)VALUES(4,'UB');
+insert into ac_berth(seat_no, berth)VALUES(5,'SL');
+insert into ac_berth(seat_no, berth)VALUES(6,'SU');
+
+insert into ac_berth(seat_no, berth)VALUES(7,'LB');
+insert into ac_berth(seat_no, berth)VALUES(8,'LB');
+insert into ac_berth(seat_no, berth)VALUES(9,'UB');
+insert into ac_berth(seat_no, berth)VALUES(10,'UB');
+insert into ac_berth(seat_no, berth)VALUES(11,'SL');
+insert into ac_berth(seat_no, berth)VALUES(12,'SU');
+
+insert into ac_berth(seat_no, berth)VALUES(13,'LB');
+insert into ac_berth(seat_no, berth)VALUES(14,'LB');
+insert into ac_berth(seat_no, berth)VALUES(15,'UB');
+insert into ac_berth(seat_no, berth)VALUES(16,'UB');
+insert into ac_berth(seat_no, berth)VALUES(17,'SL');
+insert into ac_berth(seat_no, berth)VALUES(18,'SU');
+
+
+
+create table sl_berth(seat_no integer ,berth VARCHAR(2));
+insert into sl_berth(seat_no, berth)VALUES(1,'LB');
+insert into sl_berth(seat_no, berth)VALUES(2,'MB');
+insert into sl_berth(seat_no, berth)VALUES(3,'UB');
+insert into sl_berth(seat_no, berth)VALUES(4,'LB');
+insert into sl_berth(seat_no, berth)VALUES(5,'MB');
+insert into sl_berth(seat_no, berth)VALUES(6,'UB');
+insert into sl_berth(seat_no, berth)VALUES(7,'SL');
+insert into sl_berth(seat_no, berth)VALUES(8,'SU');
+
+insert into sl_berth(seat_no, berth)VALUES(9,'LB');
+insert into sl_berth(seat_no, berth)VALUES(10,'MB');
+insert into sl_berth(seat_no, berth)VALUES(11,'UB');
+insert into sl_berth(seat_no, berth)VALUES(12,'LB');
+insert into sl_berth(seat_no, berth)VALUES(13,'MB');
+insert into sl_berth(seat_no, berth)VALUES(14,'UB');
+insert into sl_berth(seat_no, berth)VALUES(15,'SL');
+insert into sl_berth(seat_no, berth)VALUES(16,'SU');
+
+insert into sl_berth(seat_no, berth)VALUES(17,'LB');
+insert into sl_berth(seat_no, berth)VALUES(18,'MB');
+insert into sl_berth(seat_no, berth)VALUES(19,'UB');
+insert into sl_berth(seat_no, berth)VALUES(20,'LB');
+insert into sl_berth(seat_no, berth)VALUES(21,'MB');
+insert into sl_berth(seat_no, berth)VALUES(22,'UB');
+insert into sl_berth(seat_no, berth)VALUES(23,'SL');
+insert into sl_berth(seat_no, berth)VALUES(24,'SU');
+
+
+
+
+
+create or replace function print_ticket(pnr_print uuid)
+returns table(pnr uuid, date date, train_no integer, train_name varchar(20), pass_name varchar(20), age integer, 
+			  gender varchar(2), coach varchar(5), seat integer, berth varchar(2)) as $$
+declare 
+print record ;
+type_ticket varchar(2);
+berth varchar(2);
+begin
+select into type_ticket ticket.type from ticket where ticket.pnr=pnr_print;
+if type_ticket LIKE 'A%' then
+	return query select ticket.pnr,ticket.date,ticket.train_no, train.train_name,
+	passenger.pass_name,passenger.age, passenger.gender, passenger.coach, passenger.seat,ac_berth.berth  from ticket,train,passenger,ac_berth
+	where ticket.train_no=train.train_no and ticket.pnr=passenger.pnr and ticket.pnr=pnr_print and ac_berth.seat_no=passenger.seat;
+end if;
+if type_ticket LIKE 'S%' then
+	return query select ticket.pnr,ticket.date,ticket.train_no, train.train_name,
+	passenger.pass_name,passenger.age, passenger.gender, passenger.coach, passenger.seat,sl_berth.berth  from ticket,train,passenger,sl_berth
+	where ticket.train_no=train.train_no and ticket.pnr=passenger.pnr and ticket.pnr=pnr_print and sl_berth.seat_no=passenger.seat;
+end if;
+
+end;
+$$ LANGUAGE plpgsql;
+
+
+
+
+#############some testases ##################################
+insert into train(train_no,train_name)VALUES(12723,'TELANGANA EXPRESS');
+insert into train(train_no,train_name)VALUES(12438,' NZM SC RJDHNI');
+insert into train(train_no,train_name)VALUES(12433,'CHENNAI RJDHNI');
+insert into train(train_no,train_name)VALUES(22692,'BANGLORE RJDHNI');
+insert into train(train_no,train_name)VALUES(12057,'JAN SHATABDI');
+insert into train(train_no,train_name)VALUES(12002,'BHOPAL SHATABDI');
+insert into train(train_no,train_name)VALUES(12202,'LTT GARIBRATH');
+
+
+insert into available_train(train_no,date,coach_ac,coach_sl,avail_ac,avail_sl)VALUES(12723,'2020-11-11',3,5,54,120);
+insert into available_train(train_no,date,coach_ac,coach_sl,avail_ac,avail_sl)VALUES(12723,'2020-11-12',3,5,54,120);
+insert into available_train(train_no,date,coach_ac,coach_sl,avail_ac,avail_sl)VALUES(12723,'2020-11-13',3,5,54,120);
+
+insert into available_train(train_no,date,coach_ac,coach_sl,avail_ac,avail_sl)VALUES(12438,'2020-11-11',4,6,72,144);
+insert into available_train(train_no,date,coach_ac,coach_sl,avail_ac,avail_sl)VALUES(12438,'2020-11-18',4,6,72,144);
+insert into available_train(train_no,date,coach_ac,coach_sl,avail_ac,avail_sl)VALUES(12438,'2020-11-25',4,6,72,144);
+
+insert into available_train(train_no,date,coach_ac,coach_sl,avail_ac,avail_sl)VALUES(12433,'2020-11-11',4,5,72,120);
+insert into available_train(train_no,date,coach_ac,coach_sl,avail_ac,avail_sl)VALUES(12433,'2020-11-13',4,5,72,120);
+insert into available_train(train_no,date,coach_ac,coach_sl,avail_ac,avail_sl)VALUES(12433,'2020-11-15',4,5,72,120);
+
+
+
+
+
+insert into available_train(train_no,date,coach_ac,coach_sl,avail_ac,avail_sl)VALUES(22692,'2020-11-11',9,0,162,0);
+insert into available_train(train_no,date,coach_ac,coach_sl,avail_ac,avail_sl)VALUES(22692,'2020-11-14',9,0,162,0);
+insert into available_train(train_no,date,coach_ac,coach_sl,avail_ac,avail_sl)VALUES(22692,'2020-11-17',9,0,162,0);
+
+insert into available_train(train_no,date,coach_ac,coach_sl,avail_ac,avail_sl)VALUES(12057,'2020-11-11',4,7,72,168);
+insert into available_train(train_no,date,coach_ac,coach_sl,avail_ac,avail_sl)VALUES(12057,'2020-11-12',4,7,72,168);
+insert into available_train(train_no,date,coach_ac,coach_sl,avail_ac,avail_sl)VALUES(12057,'2020-11-13',4,7,72,168);
+
+
+insert into available_train(train_no,date,coach_ac,coach_sl,avail_ac,avail_sl)VALUES(12002,'2020-11-11',4,7,72,168);
+insert into available_train(train_no,date,coach_ac,coach_sl,avail_ac,avail_sl)VALUES(12002,'2020-11-13',4,7,72,168);
+insert into available_train(train_no,date,coach_ac,coach_sl,avail_ac,avail_sl)VALUES(12002,'2020-11-15',4,7,72,168);
+
+insert into available_train(train_no,date,coach_ac,coach_sl,avail_ac,avail_sl)VALUES(12202,'2020-11-11',4,9,72,216);
+insert into available_train(train_no,date,coach_ac,coach_sl,avail_ac,avail_sl)VALUES(12202,'2020-11-16',4,9,72,216);
+insert into available_train(train_no,date,coach_ac,coach_sl,avail_ac,avail_sl)VALUES(12202,'2020-11-21',4,9,72,216);
+
+
+
+
+select check_availability('{"req_seats":5,"train_no":12002,"date":"2020-11-14","coach":"AC"}');
+-- should return -1 as train is  not available...tested ok
+select check_availability('{"req_seats":5,"train_no":12002,"date":"2020-11-13","coach":"AC"}');
+--should return 1...tested ok
+select check_availability('{"req_seats":5,"train_no":22692,"date":"2020-11-11","coach":"SL"}');
+--should return 0 as SL is not available for this train
+
+
+select update_passengers('{
+  "train_no": 12002,
+  "coach": "SL",
+  "date":"2020-11-11",					 
+  "passengers": 3,
+  "name": [ "fourth ", "fifth","sixth" ],
+  "agent_id":"ashish@gmail.com",
+  "age": [ 20, 20,20 ],
+  "gender": [ "M", "M" ,"F"]
+}')

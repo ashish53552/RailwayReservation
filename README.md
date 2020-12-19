@@ -21,4 +21,6 @@ interest by the Admin.
 
 - Booked Tickets ![2](./Screenshots/8.png)
 
+- Tables ![2](./Screenshots/9.png)
+
 
